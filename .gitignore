@@ -1,0 +1,8 @@
+.venv/
+*.pyc
+*/__pycache__/
+cyberwolf.ini
+openwolf.ini
+debug_access.json
+.DS_Store
+deploy.py
