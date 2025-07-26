@@ -40,6 +40,7 @@ try:
     from time import sleep
     import configparser
     import os
+    import inspect
 except ModuleNotFoundError:
     print(f"{errmsg} Something went wrong with Python standard library imports.")
     print(f"{errmsg} Is your Python installation corrupted?")
@@ -74,7 +75,9 @@ def load_locale(lang_code): # Loading locale file
         
 def tlang(key, **kwargs): # Getting localized string from locale file
     if key not in LOCALE:
-        debug_print(f"Locale key '{key}' not found, falling back to key name.")
+        frame = inspect.currentframe().f_back
+        location = f"{frame.f_code.co_name} (line {frame.f_lineno})"
+        debug_print(f"Locale key '{key}' not found, called from {location}. Falling back to key name.")
     text = LOCALE.get(key, key)
     return text.format(**kwargs)
 
@@ -380,7 +383,7 @@ async def on_ready():
         print(infomsg + tlang('ascii_skipped'))
         print(f'{infomsg}You are running OpenWolf!')
         print(f'{infomsg}Your open-source Discord assistant')
-        print(f"Version {version}")
+        print(f"{infomsg}Version {version}")
         print(infomsg + tlang('reconnected'))
         print(infomsg + tlang('logged_in', bot_name=bot.user.name, bot_discriminator=bot.user.discriminator, bot_id=bot.user.id))
 
@@ -604,7 +607,7 @@ class ConfirmView(discord.ui.View): # Confirmation buttons for dangerous command
         self.stop()
         await interaction.response.defer()
 
-@bot.tree.command(name="getchannelinfo", description=tlang('command_description_getchannelinfo'))
+@bot.tree.command(name="channelinfo", description=tlang('command_description_getchannelinfo'))
 async def getchannelinfo(interaction:discord.Interaction, channel:discord.TextChannel):
     embed = discord.Embed(
         title=tlang('getchannelinfo_title') + channel.name,
@@ -624,6 +627,24 @@ async def getchannelinfo(interaction:discord.Interaction, channel:discord.TextCh
     )
     category_name = channel.category.name if channel.category else tlang('getchannelinfo_no_category')
     embed.add_field(name=tlang('getchannelinfo_category'), value=category_name, inline=False)
+    await interaction.response.send_message(embed=embed)
+@bot.tree.command(name="userinfo", description=tlang('command_description_userinfo'))
+async def userinfo(interaction:discord.Interaction, member:discord.Member):
+    embed = discord.Embed(
+        title=tlang('userinfo_title'),
+        description=tlang('userinfo_description', member_name=member.name)
+    )
+    if member.nick == None:
+        embed.add_field(name=tlang('userinfo_displayname'), value=f"{member.global_name}")
+    else:
+        embed.add_field(name=tlang('userinfo_displayname'), value=f"{member.global_name} ({member.nick})")
+    embed.add_field(name=tlang('userinfo_id'), value=member.id)
+    embed.add_field(name=tlang('userinfo_joined_at'), value=member.joined_at.strftime('%a %d %b %Y, %H:%M'))
+    if member.premium_since:
+        embed.add_field(name=tlang('userinfo_premium_since'), value=member.premium_sincestrftime('%a %d %b %Y, %H:%M'))
+    embed.add_field(name=tlang('userinfo_toprole'), value=member.top_role.name)
+    embed.set_thumbnail(url=member.avatar if member.avatar else None)
+    embed.set_footer(text=tlang('generic_requestedby') + interaction.user.name + " | OpenWolf", icon_url=interaction.user.avatar.url)
     await interaction.response.send_message(embed=embed)
 @bot.tree.command(name="purgechannel", description=tlang('command_description_purgechannel')) # Delete and recreate channel to remove all channel history
 async def purgechannel(interaction:discord.Interaction, channel:discord.TextChannel):
