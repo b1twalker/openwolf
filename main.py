@@ -81,6 +81,25 @@ def tlang(key, **kwargs): # Getting localized string from locale file
     text = LOCALE.get(key, key)
     return text.format(**kwargs)
 
+def get_version():
+    version_file = os.path.join(os.path.dirname(__file__), 'config/version.txt')
+    if os.path.exists(version_file):
+        with open(version_file, 'r') as f:
+            return "Version " + f.read().strip()  # Returns version from release
+    else: # If not release
+        base = "Branch Snapshot"
+        if os.path.exists('.git'):  # If cloned from git
+            try:
+                # Get branch name
+                branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).decode().strip()
+                # Get commit hash
+                commit_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode().strip()
+                return f"{base} ({branch} - {commit_hash})"
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                pass  # If git is not installed or on error
+        # If downloaded as ZIP from web
+        return f"{base} (unknown)"
+
 # Config file location
 config_dir = os.path.join(os.path.dirname(__file__), 'config')
 os.makedirs(config_dir, exist_ok=True)
@@ -326,7 +345,7 @@ async def on_ready():
     if config_data['custom_statuses'] == True:
         bot.loop.create_task(animated_status())
     else:
-        await bot.change_presence(activity=discord.Game(f"🐺 OpenWolf v{version}"))
+        await bot.change_presence(activity=discord.Game(f"🐺 OpenWolf {get_version() }"))
     end_time = time.time()
     total_time_raw = end_time - start_time
     total_time = f"{total_time_raw:.2f}"
@@ -345,7 +364,7 @@ async def on_ready():
         "                  ███ ██           ██   ██     ███         ",
         "                ███████████        ██   ███     ███        | You are running OpenWolf!",
         "             ████                 ███     █  █  ██         | Your open-source Discord assistant",
-        "          ████             █      ██      █  ██ ██         | Version {version}",
+        "          ████             █      ██      █  ██ ██         | {version}",
         "         █████             ██    ███    █    █████         ",
         "           ███      █████  ██   ███     ██   ████          ",
         "            █████████   ████  ████      ███ ██ ██          ",
@@ -367,11 +386,11 @@ async def on_ready():
         if config_data['asciilogo'] == False:
             print(f'{infomsg}You are running OpenWolf!')
             print(f'{infomsg}Your open-source Discord assistant')
-            print(f'{infomsg}Version {version}')
+            print(f'{infomsg}{get_version()}')
         else:
             sys.stdout.write('\033[2J\033[H')  # Clear screen and move cursor to top
             for idx, line in enumerate(ascii_logo):
-                print(line.format(version=version))
+                print(line.format(version=get_version()))
                 sys.stdout.flush()
                 time.sleep(0.03)
         print(infomsg + tlang('bot_ready', total_time=total_time))
@@ -383,7 +402,7 @@ async def on_ready():
         print(infomsg + tlang('ascii_skipped'))
         print(f'{infomsg}You are running OpenWolf!')
         print(f'{infomsg}Your open-source Discord assistant')
-        print(f"{infomsg}Version {version}")
+        print(f"{infomsg}Version {get_version()}")
         print(infomsg + tlang('reconnected'))
         print(infomsg + tlang('logged_in', bot_name=bot.user.name, bot_discriminator=bot.user.discriminator, bot_id=bot.user.id))
 
@@ -632,17 +651,20 @@ async def getchannelinfo(interaction:discord.Interaction, channel:discord.TextCh
 async def userinfo(interaction:discord.Interaction, member:discord.Member):
     embed = discord.Embed(
         title=tlang('userinfo_title'),
-        description=tlang('userinfo_description', member_name=member.name)
+        description=tlang('userinfo_description') + member.mention
     )
     if member.nick == None:
         embed.add_field(name=tlang('userinfo_displayname'), value=f"{member.global_name}")
     else:
         embed.add_field(name=tlang('userinfo_displayname'), value=f"{member.global_name} ({member.nick})")
     embed.add_field(name=tlang('userinfo_id'), value=member.id)
-    embed.add_field(name=tlang('userinfo_joined_at'), value=member.joined_at.strftime('%a %d %b %Y, %H:%M'))
+    embed.add_field(name=tlang('userinfo_joined_at'), value=member.joined_at.strftime('%a %d %b %Y, %H:%M') if not None else "Never")
     if member.premium_since:
-        embed.add_field(name=tlang('userinfo_premium_since'), value=member.premium_sincestrftime('%a %d %b %Y, %H:%M'))
-    embed.add_field(name=tlang('userinfo_toprole'), value=member.top_role.name)
+        if member.premium_since == None:
+            embed.add_field(name=tlang('userinfo_premium_since'), value="Never")
+        else:
+            embed.add_field(name=tlang('userinfo_premium_since'), value=member.premium_since.strftime())
+    embed.add_field(name=tlang('user0info_toprole'), value=member.top_role.name)
     embed.set_thumbnail(url=member.avatar if member.avatar else None)
     embed.set_footer(text=tlang('generic_requestedby') + interaction.user.name + " | OpenWolf", icon_url=interaction.user.avatar.url)
     await interaction.response.send_message(embed=embed)
