@@ -119,7 +119,7 @@ class config(): # Config and things
 
 
     def read():
-        # Create a ConfigParser object
+        # Create an ConfigParser object
         config = configparser.ConfigParser()
     
         # Read the configuration file
