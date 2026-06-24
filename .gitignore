@@ -6,3 +6,5 @@ openwolf.ini
 debug_access.json
 .DS_Store
 deploy.py
+.idea/
+.vscode/
